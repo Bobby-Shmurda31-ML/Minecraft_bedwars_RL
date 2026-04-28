@@ -369,6 +369,7 @@ class PPOAgent:
         obs, _ = env.reset()
         episode_reward = 0
         episode_length = 0
+        global_step = 0
         
         for step in range(total_timesteps):
             # Выбор действия
@@ -384,6 +385,7 @@ class PPOAgent:
             obs = next_obs
             episode_reward += reward
             episode_length += 1
+            global_step += 1
             
             # Обновление
             if step > 0 and step % TRAINING_CONFIG["batch_size"] == 0:
@@ -401,7 +403,8 @@ class PPOAgent:
                 if verbose and len(self.episode_rewards) % 10 == 0:
                     avg_reward = np.mean(self.episode_rewards[-10:])
                     print(f"Episode {len(self.episode_rewards)}: reward={episode_reward:.2f}, "
-                          f"avg_last_10={avg_reward:.2f}, steps={episode_length}")
+                          f"avg_last_10={avg_reward:.2f}, ep_steps={episode_length}, "
+                          f"total_steps={global_step}")
                 
                 obs, _ = env.reset()
                 episode_reward = 0
