@@ -192,8 +192,10 @@ class BedwarsEnv(gym.Env):
     def _init_grid(self):
         """Инициализация сетки блоков"""
         # Создаем пустую сетку (увеличиваем размер для запасов)
+        # Увеличиваем размер чтобы избежать IndexError при генерации островов по краям
+        padding = 20  # Увеличенный запас
         self.grid = np.zeros(
-            (self.map_size + 10, self.map_size * 2 + 10, self.map_size + 10),
+            (self.map_size + padding, self.map_size * 2 + padding, self.map_size + padding),
             dtype=np.int8
         )
         
@@ -843,8 +845,18 @@ class BedwarsEnv(gym.Env):
         if self.current_step >= self.max_steps:
             self.episode_over = True
             return
-            
+        
+        # Для curriculum stages 0-2 (обучение) не заканчиваем эпизод по условию победы
+        # чтобы агент мог учиться дольше
+        if self.curriculum_stage in [0, 1, 2]:
+            # Только проверка по времени для ранних этапов
+            return
+        
         # Проверка победы (все враги мертвы или все кровати разрушены)
+        # Нужно минимум 2 команды для проверки победы
+        if self.num_teams < 2:
+            return
+            
         teams_with_beds = set()
         teams_with_players = set()
         
@@ -857,8 +869,13 @@ class BedwarsEnv(gym.Env):
                 teams_with_players.add(player.team_id)
                 
         # Победа если осталась одна команда с кроватью или игроками
-        if len(teams_with_beds) <= 1 or len(teams_with_players) <= 1:
-            self.episode_over = True
+        # и есть как минимум 2 команды в игре
+        if len(teams_with_beds) <= 1 and len(teams_with_players) <= 1 and len(teams_with_beds) > 0:
+            # Проверяем что это действительно конец игры (есть победитель и проигравшие)
+            all_team_ids = set(range(self.num_teams))
+            eliminated_teams = all_team_ids - teams_with_beds
+            if len(eliminated_teams) > 0:
+                self.episode_over = True
             
     def render(self):
         """Рендеринг среды"""
